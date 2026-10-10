@@ -223,8 +223,8 @@ Confirm your terraform configuration matches [this commit on Erik's workshop bra
 
 ```bash
 terraform init
-terraform plan -out "terraform.tfplan"   
-terraform apply "terraform.tfplan"   
+terraform plan -out "terraform.tfplan"
+terraform apply "terraform.tfplan"
 ```
 
 ## Deleting AWS Resources
