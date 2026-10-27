@@ -5,18 +5,19 @@ on:
   push:
     branches:
       - main
+      - prod
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - run: make build-image
 
       - env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: make build-image-push
 
@@ -25,7 +26,7 @@ jobs:
       - build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -52,16 +53,28 @@ jobs:
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      DOCKERIZE_URL: ${{ secrets.GOOSE_DBSTRING }}
-      GOOSE_DBSTRING: ${{ secrets.GOOSE_DBSTRING }}
-      GOOSE_DRIVER: ${{ vars.GOOSE_DRIVER }}
-#    if: github.ref == 'refs/head/main'
+    if: github.ref == 'refs/head/main' || github.ref == 'refs/head/prod'
     needs:
       - test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - run: make build-image-pull
-      - run: make build-image-migrate
-      - run: make build-image-promote
+
+      - run: |
+          BUILD_TAG=staging
+
+          if [[ "${GITHUB_REF}" == "refs/heads/prod" ]]; then
+            BUILD_TAG=prod
+          fi
+
+          ECS_CLUSTER_NAME=${BUILD_TAG}
+          ECS_SERVICE_NAME=${ECS_CLUSTER_NAME}-service
+
+          echo "BUILD_TAG: ${BUILD_TAG}"
+          echo "ECS_CLUSTER_NAME: ${ECS_CLUSTER_NAME}"
+          echo "ECS_SERVICE_NAME: ${ECS_SERVICE_NAME}"
+
+          make BUILD_TAG=$BUILD_TAG build-image-promote
+          make ECS_CLUSTER_NAME=$ECS_CLUSTER_NAME ECS_SERVICE_NAME=$ECS_SERVICE_NAME deploy
